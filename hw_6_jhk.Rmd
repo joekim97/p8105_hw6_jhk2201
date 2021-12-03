@@ -1,0 +1,45 @@
+---
+title: "P8105: Homework 6"
+author: "joseph Kim"
+date: "12/3/2021"
+output: github_document
+---
+
+```{r setup, include=FALSE}
+library(tidyverse)
+library(purrr)
+library(ggplot2)
+```
+
+### Problem 1: Loading and Cleaning Datafile
+
+```{r}
+birthweight_df = 
+  read_csv("/Users/josephkim/Desktop/p8105_hw6_jhk2201/birthweight.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(babysex = recode(babysex, "2" = "Female", "1" = "Male"),
+         babysex = factor(babysex, levels = c("Female", "Male")),
+         frace = recode(frace,
+           "1" = "White", 
+           "2" = "Black",
+           "3" = "Asian",
+           "4" = "Puerto Rican",
+           "8" = "Other",
+           "9" = "Unknown"),
+         frace = factor(frace, levels = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")), 
+         malform = recode(malform, 
+            "0" = "absent",
+            "1" = "present"),
+         malform = factor(malform, levels = c("absent", "present")),
+         mrace = recode(mrace,
+           "1" = "White", 
+           "2" = "Black",
+           "3" = "Asian",
+           "4" = "Puerto Rican",
+           "8" = "Other",
+           "9" = "Unknown"),
+         mrace = factor(mrace, levels = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")))
+         
+  
+```
+
