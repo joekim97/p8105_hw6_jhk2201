@@ -62,6 +62,12 @@ birthweight_df =
 The birth weight data set presented 4342 rows of data for 20 different variables.
 The categorical variables were changed to factor variables (4 variables). 
 
+```{r}
+skimr::skim(birthweight_df)
+```
+
+There is no missing data in this dataframe. 
+
 ------
 
 ##### Part 2: Proposing the Model 
@@ -88,7 +94,11 @@ birthweight_df %>%
   add_predictions(reg_birthweight) %>% 
   add_residuals(reg_birthweight) %>% 
   ggplot(aes(x = pred, y = resid)) + 
-  geom_point()
+  geom_point() + 
+  labs( 
+    x = "Predictions", 
+    y = "Residuals", 
+    title = "Model Residuals vs Fitted Values")
 ```
 
 Based off of the produced plots of the residuals, it appears as though the points are distributed even above and below the zero line, suggesting that the distribution is approximately normal. 
@@ -182,7 +192,11 @@ r_squared =
   unnest(results) 
 
 r_squared %>% 
-  ggplot(aes(x=r.squared)) + geom_density()
+  ggplot(aes(x=r.squared)) + geom_density() + 
+  labs( 
+    x = "R Squared", 
+    y = "Density", 
+    title = "Distribution of R Squared")
 ```
 
 The produced density shows that the distribution of r squared appears approximately normal. 
@@ -215,7 +229,11 @@ log_distribution =
 
 
 log_distribution %>% 
-  ggplot(aes(x=log_beta)) + geom_density()
+  ggplot(aes(x=log_beta)) + geom_density() + 
+  labs( 
+    x = "Log(B0*B1)", 
+    y = "Density", 
+    title = "Distribution of Log(B0*B1)")
 ```
 
 Similarly to the distribution of r-squared values, the distribution of the log(B0*B1) is approximately normal. 

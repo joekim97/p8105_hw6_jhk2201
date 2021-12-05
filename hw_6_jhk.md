@@ -75,7 +75,11 @@ birthweight_df %>%
   add_predictions(reg_birthweight) %>% 
   add_residuals(reg_birthweight) %>% 
   ggplot(aes(x = pred, y = resid)) + 
-  geom_point()
+  geom_point() + 
+  labs( 
+    x = "Predictions", 
+    y = "Residuals", 
+    title = "Model Residuals vs Fitted Values")
 ```
 
 <img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-2-1.png" width="90%" />
@@ -201,7 +205,11 @@ r_squared =
   unnest(results) 
 
 r_squared %>% 
-  ggplot(aes(x=r.squared)) + geom_density()
+  ggplot(aes(x=r.squared)) + geom_density() + 
+  labs( 
+    x = "R Squared", 
+    y = "Density", 
+    title = "Distribution of R Squared")
 ```
 
 <img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-7-1.png" width="90%" />
@@ -243,7 +251,11 @@ log_distribution =
 
 
 log_distribution %>% 
-  ggplot(aes(x=log_beta)) + geom_density()
+  ggplot(aes(x=log_beta)) + geom_density() + 
+  labs( 
+    x = "Log(B0*B1)", 
+    y = "Density", 
+    title = "Distribution of Log(B0*B1)")
 ```
 
 <img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
