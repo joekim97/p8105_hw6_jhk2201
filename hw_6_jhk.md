@@ -33,19 +33,13 @@ birthweight_df =
          mrace = factor(mrace, levels = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")))
 ```
 
-    ## Rows: 4342 Columns: 20
-
-    ## ── Column specification ────────────────────────────────────────────────────────
-    ## Delimiter: ","
-    ## dbl (20): babysex, bhead, blength, bwt, delwt, fincome, frace, gaweeks, malf...
-
-    ## 
-    ## ℹ Use `spec()` to retrieve the full column specification for this data.
-    ## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.
-
 The birth weight data set presented 4342 rows of data for 20 different
 variables. The categorical variables were changed to factor variables (4
 variables).
+
+------------------------------------------------------------------------
+
+##### Part 2: Proposing the Model
 
 Variables of Interest:
 
@@ -89,6 +83,10 @@ birthweight_df %>%
 Based off of the produced plots of the residuals, it appears as though
 the points are distributed even above and below the zero line,
 suggesting that the distribution is approximately normal.
+
+------------------------------------------------------------------------
+
+### Comparing Model using Cross Validated Predection
 
 ``` r
 model1 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
@@ -137,7 +135,9 @@ cv_df =
     rmse_proposed_model = map2_dbl(proposed_model, test,  ~rmse(model = .x, data = .y)),
     rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
     rmse_moddel_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
+```
 
+``` r
 comparison_plot= 
   cv_df %>% 
   select(starts_with("rmse")) %>% 
@@ -152,6 +152,115 @@ comparison_plot=
     x = "Model", 
     Y = "RMSE value", 
     title = "Model Comparison Plot")
+
+comparison_plot
 ```
 
-\`\`\`
+<img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-5-1.png" width="90%" />
+
+The resulting plot compares the RMSE of the three models presented. The
+proposed model was the weakest predictive model of the three, as it had
+the highest rmse value. Model 2 was the best, probably due to inclusion
+of interactions.
+
+------------------------------------------------------------------------
+
+### Problem 2:
+
+##### Code from Assignment to import weather data
+
+``` r
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+```
+
+The weather dataframe from the provide code produces 365 rows of data
+with 6 variables.
+
+##### R-squared
+
+``` r
+set.seed(1)
+
+r_squared = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) 
+
+r_squared %>% 
+  ggplot(aes(x=r.squared)) + geom_density()
+```
+
+<img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-7-1.png" width="90%" />
+
+The produced density shows that the distribution of r squared appears
+approximately normal.
+
+``` r
+r_squared %>% 
+  summarize(
+    ci_lower = quantile(r.squared, 0.025), 
+    ci_upper = quantile(r.squared, 0.975))
+```
+
+    ## # A tibble: 1 × 2
+    ##   ci_lower ci_upper
+    ##      <dbl>    <dbl>
+    ## 1    0.894    0.927
+
+The 95% confidence interval of the r-squared values is \[0.894, 0.927\]
+
+##### Log(B0\*B1)
+
+``` r
+log_distribution = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  select(.id, term, estimate) %>% 
+  pivot_wider(
+    names_from = term, 
+    values_from = estimate) %>% 
+  rename(intercept = "(Intercept)") %>% 
+  mutate(log_beta = log(intercept*tmin))  
+
+
+log_distribution %>% 
+  ggplot(aes(x=log_beta)) + geom_density()
+```
+
+<img src="hw_6_jhk_files/figure-gfm/unnamed-chunk-9-1.png" width="90%" />
+
+Similarly to the distribution of r-squared values, the distribution of
+the log(B0\*B1) is approximately normal.
+
+``` r
+log_distribution %>% 
+    summarize(
+    ci_lower = quantile(log_beta, 0.025), 
+    ci_upper = quantile(log_beta, 0.975))
+```
+
+    ## # A tibble: 1 × 2
+    ##   ci_lower ci_upper
+    ##      <dbl>    <dbl>
+    ## 1     1.96     2.06
+
+The 95% confidence interval of log(B0\*B1) is \[1.97, 2.06\]

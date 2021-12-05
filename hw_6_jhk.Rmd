@@ -30,7 +30,7 @@ scale_fill_discrete = scale_fill_viridis_d
 
 ### Problem 1: Loading and Cleaning Datafile
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 birthweight_df = 
   read_csv("/Users/josephkim/Desktop/p8105_hw6_jhk2201/birthweight.csv") %>% 
   janitor::clean_names() %>% 
@@ -62,6 +62,9 @@ birthweight_df =
 The birth weight data set presented 4342 rows of data for 20 different variables.
 The categorical variables were changed to factor variables (4 variables). 
 
+------
+
+##### Part 2: Proposing the Model 
 
 Variables of Interest: 
 
@@ -74,7 +77,7 @@ wtgain: mother's weight gain during pregnancy (pounds)
 
 These variables were selected to see if we could predict a newborn's birth weight based on measurable data that based on the pregnant mother. 
 
-```{r}
+```{r, message=FALSE, warning=FALSE}
 reg_birthweight = lm(bwt ~ smoken + mrace + gaweeks + momage + wtgain, data = birthweight_df)
 
 reg_birthweight %>% 
@@ -90,7 +93,11 @@ birthweight_df %>%
 
 Based off of the produced plots of the residuals, it appears as though the points are distributed even above and below the zero line, suggesting that the distribution is approximately normal. 
 
-```{r}
+-----
+
+### Comparing Model using Cross Validated Predection
+
+```{r, message=FALSE, warning=FALSE}
 model1 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
 
 model2= lm(bwt ~ babysex * blength * bhead, data = birthweight_df)
@@ -102,8 +109,7 @@ model2 %>%
   broom::tidy()
 ```
 
-### Comparing Model using Cross Validated Predection
-```{r}
+```{r, message=FALSE, warning=FALSE}
 cv_df =
   crossv_mc(birthweight_df, 100) %>% 
   mutate(
@@ -117,7 +123,9 @@ cv_df =
     rmse_proposed_model = map2_dbl(proposed_model, test,  ~rmse(model = .x, data = .y)),
     rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
     rmse_moddel_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
+```
 
+```{r, message=FALSE, warning=FALSE}
 comparison_plot= 
   cv_df %>% 
   select(starts_with("rmse")) %>% 
@@ -136,7 +144,14 @@ comparison_plot=
 comparison_plot
 ```
 
-```{r}
+The resulting plot compares the RMSE of the three models presented. The proposed model was the weakest predictive model of the three, as it had the highest rmse value. Model 2 was the best, probably due to inclusion of interactions. 
+
+-----
+
+### Problem 2: 
+
+##### Code from Assignment to import weather data
+```{r, message=FALSE, warning=FALSE}
 weather_df = 
   rnoaa::meteo_pull_monitors(
     c("USW00094728"),
@@ -149,35 +164,68 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 
+```
+
+The weather dataframe from the provide code produces 365 rows of data with 6 variables. 
+
+##### R-squared
+```{r, message=FALSE, warning=FALSE}
 set.seed(1)
 
 r_squared = 
   weather_df %>% 
   modelr::bootstrap(n = 5000) %>% 
   mutate(
-    models = map(strap, ~lm(tmax ~ tmin, data = .x) ),
-    results = map(models, broom::tidy)) %>% 
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::glance)) %>% 
   select(-strap, -models) %>% 
   unnest(results) 
 
- 
 r_squared %>% 
-  ggplot(aes(x=r_squared)) + 
-  geom_density()
-
-r_squared_plot
-
-boot_strap
-
-log_bootstrap = 
-  boot_strap %>% 
-  select(.id, term, estimate) %>% 
-  pivot_wider(
-    names_from = "term",
-    values_from = "estimate"
-    ) %>% 
-  rename(intercept = "(Intercept)") %>% 
-  mutate(log_beta = log(intercept*tmin))  
+  ggplot(aes(x=r.squared)) + geom_density()
 ```
 
+The produced density shows that the distribution of r squared appears approximately normal. 
+
+```{r, message=FALSE, warning=FALSE}
+r_squared %>% 
+  summarize(
+    ci_lower = quantile(r.squared, 0.025), 
+    ci_upper = quantile(r.squared, 0.975))
+```
+
+The 95% confidence interval of the r-squared values is [0.894, 0.927]
+
+##### Log(B0*B1)
+```{r, message=FALSE, warning=FALSE}
+log_distribution = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x)),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  select(.id, term, estimate) %>% 
+  pivot_wider(
+    names_from = term, 
+    values_from = estimate) %>% 
+  rename(intercept = "(Intercept)") %>% 
+  mutate(log_beta = log(intercept*tmin))  
+
+
+log_distribution %>% 
+  ggplot(aes(x=log_beta)) + geom_density()
+```
+
+Similarly to the distribution of r-squared values, the distribution of the log(B0*B1) is approximately normal. 
+
+```{r, message=FALSE, warning=FALSE}
+log_distribution %>% 
+    summarize(
+    ci_lower = quantile(log_beta, 0.025), 
+    ci_upper = quantile(log_beta, 0.975))
+```
+
+The 95% confidence interval of log(B0*B1) is [1.97, 2.06]
 
