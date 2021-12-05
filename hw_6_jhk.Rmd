@@ -9,6 +9,8 @@ output: github_document
 library(tidyverse)
 library(purrr)
 library(ggplot2)
+library(modelr)
+set.seed(1)
 ```
 
 ### Problem 1: Loading and Cleaning Datafile
@@ -39,7 +41,52 @@ birthweight_df =
            "8" = "Other",
            "9" = "Unknown"),
          mrace = factor(mrace, levels = c("White", "Black", "Asian", "Puerto Rican", "Other", "Unknown")))
-         
-  
+      
+```
+
+The birth weight data set presented 4342 rows of data for 20 different variables.
+The categorical variables were changed to factor variables (4 variables). 
+
+```{r}
+
+reg_birthweight = lm(bwt ~ smoken + mrace +frace + gaweeks + momage, data = birthweight_df) %>% 
+  broom::tidy()
+
+summary(reg_birthweight)
+
+add_predictions(birthweight_df, reg_birthweight)
+add_residuals(birthweight_df, reg_birthweight)
+
+reg_birthweight %>% 
+  add_predictions(birthweight_df, reg_birthweight) %>% 
+  add_residuals(birthweight_df, reg_birthweight) %>% 
+  ggplot(aes(x = pred, 
+             y = resid)) +
+  geom_line()
+```
+
+```{r}
+weather_df = 
+  rnoaa::meteo_pull_monitors(
+    c("USW00094728"),
+    var = c("PRCP", "TMIN", "TMAX"), 
+    date_min = "2017-01-01",
+    date_max = "2017-12-31") %>%
+  mutate(
+    name = recode(id, USW00094728 = "CentralPark_NY"),
+    tmin = tmin / 10,
+    tmax = tmax / 10) %>%
+  select(name, id, everything())
+
+boot_strap = 
+  weather_df %>% 
+  modelr::bootstrap(n = 5000) %>% 
+  mutate(
+    models = map(strap, ~lm(tmax ~ tmin, data = .x) ),
+    results = map(models, broom::tidy)) %>% 
+  select(-strap, -models) %>% 
+  unnest(results) %>% 
+  group_by(term) 
+
 ```
 
