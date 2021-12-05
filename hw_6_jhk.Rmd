@@ -10,7 +10,22 @@ library(tidyverse)
 library(purrr)
 library(ggplot2)
 library(modelr)
+library(dbplyr)
+
 set.seed(1)
+
+knitr::opts_chunk$set(
+  fig.width = 6,
+  fig.asp = .6, 
+  out.width = "90%"
+)
+theme_set(theme_minimal() + theme(legend.position = "bottom"))
+options(
+  ggplot2.continuous.colour = "viridis",
+  ggplot2.continuous.fill = "viridis"
+)
+scale_colour_discrete = scale_colour_viridis_d
+scale_fill_discrete = scale_fill_viridis_d
 ```
 
 ### Problem 1: Loading and Cleaning Datafile
@@ -47,22 +62,78 @@ birthweight_df =
 The birth weight data set presented 4342 rows of data for 20 different variables.
 The categorical variables were changed to factor variables (4 variables). 
 
+
+Variables of Interest: 
+
+bwt: birth weight (outcome variables)
+smoken: average number of cigarettes smoked per day during pregnancy 
+mrace: mother's race 
+gaweeks: gestational age in weeks 
+momage: mother's age at delivery (years)
+wtgain: mother's weight gain during pregnancy (pounds)
+
+These variables were selected to see if we could predict a newborn's birth weight based on measurable data that based on the pregnant mother. 
+
 ```{r}
-
-reg_birthweight = lm(bwt ~ smoken + mrace +frace + gaweeks + momage, data = birthweight_df) %>% 
-  broom::tidy()
-
-summary(reg_birthweight)
-
-add_predictions(birthweight_df, reg_birthweight)
-add_residuals(birthweight_df, reg_birthweight)
+reg_birthweight = lm(bwt ~ smoken + mrace + gaweeks + momage + wtgain, data = birthweight_df)
 
 reg_birthweight %>% 
-  add_predictions(birthweight_df, reg_birthweight) %>% 
-  add_residuals(birthweight_df, reg_birthweight) %>% 
-  ggplot(aes(x = pred, 
-             y = resid)) +
-  geom_line()
+  broom::tidy() %>% 
+  knitr::kable(digits = 6)
+
+birthweight_df %>% 
+  add_predictions(reg_birthweight) %>% 
+  add_residuals(reg_birthweight) %>% 
+  ggplot(aes(x = pred, y = resid)) + 
+  geom_point()
+```
+
+Based off of the produced plots of the residuals, it appears as though the points are distributed even above and below the zero line, suggesting that the distribution is approximately normal. 
+
+```{r}
+model1 = lm(bwt ~ blength + gaweeks, data = birthweight_df)
+
+model2= lm(bwt ~ babysex * blength * bhead, data = birthweight_df)
+
+model1 %>% 
+  broom::tidy()
+
+model2 %>% 
+  broom::tidy()
+```
+
+### Comparing Model using Cross Validated Predection
+```{r}
+cv_df =
+  crossv_mc(birthweight_df, 100) %>% 
+  mutate(
+    train = map(train, as_tibble),
+    test = map(test, as_tibble)) %>% 
+  mutate(
+    proposed_model = map(train, ~lm(bwt ~ smoken + mrace + gaweeks + momage + wtgain, data = .x)),
+    model_1 = map(train, ~lm(bwt ~ blength + gaweeks, data = .x)),
+    model_2 = map(train, ~lm(bwt ~ babysex * blength * bhead, data = .x))) %>% 
+  mutate(
+    rmse_proposed_model = map2_dbl(proposed_model, test,  ~rmse(model = .x, data = .y)),
+    rmse_model_1 = map2_dbl(model_1, test, ~rmse(model = .x, data = .y)),
+    rmse_moddel_2 = map2_dbl(model_2, test, ~rmse(model = .x, data = .y)))
+
+comparison_plot= 
+  cv_df %>% 
+  select(starts_with("rmse")) %>% 
+  pivot_longer(
+    everything(),
+    names_to = "model", 
+    values_to = "rmse",
+    names_prefix = "rmse_") %>% 
+  mutate(model = fct_inorder(model)) %>% 
+  ggplot(aes(x = model, y = rmse)) + geom_violin() +
+  labs( 
+    x = "Model", 
+    Y = "RMSE value", 
+    title = "Model Comparison Plot")
+
+comparison_plot
 ```
 
 ```{r}
@@ -78,15 +149,35 @@ weather_df =
     tmax = tmax / 10) %>%
   select(name, id, everything())
 
-boot_strap = 
+set.seed(1)
+
+r_squared = 
   weather_df %>% 
   modelr::bootstrap(n = 5000) %>% 
   mutate(
     models = map(strap, ~lm(tmax ~ tmin, data = .x) ),
     results = map(models, broom::tidy)) %>% 
   select(-strap, -models) %>% 
-  unnest(results) %>% 
-  group_by(term) 
+  unnest(results) 
 
+ 
+r_squared %>% 
+  ggplot(aes(x=r_squared)) + 
+  geom_density()
+
+r_squared_plot
+
+boot_strap
+
+log_bootstrap = 
+  boot_strap %>% 
+  select(.id, term, estimate) %>% 
+  pivot_wider(
+    names_from = "term",
+    values_from = "estimate"
+    ) %>% 
+  rename(intercept = "(Intercept)") %>% 
+  mutate(log_beta = log(intercept*tmin))  
 ```
+
 
